@@ -6,7 +6,7 @@ import {
 } from '../geo';
 
 
-export function actionOrthogonalize(wayID, projection, vertexID, ep, degThresh) {
+export function actionOrthogonalize(wayID, projection, vertexID, degThresh, ep) {
     var epsilon = ep || 1e-4;
     var threshold = degThresh || 13;  // degrees within right or straight to alter
 
@@ -21,6 +21,14 @@ export function actionOrthogonalize(wayID, projection, vertexID, ep, degThresh) 
 
         var way = graph.entity(wayID);
         way = way.removeNode('');   // sanity check - remove any consecutive duplicates
+
+        if (way.tags.nonsquare) {
+            var tags = Object.assign({}, way.tags);
+            // since we're squaring, remove indication that this is physically unsquare
+            delete tags.nonsquare;
+            way = way.update({tags: tags});
+        }
+
         graph = graph.replace(way);
 
         var isClosed = way.isClosed();

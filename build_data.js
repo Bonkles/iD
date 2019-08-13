@@ -10,8 +10,8 @@ const YAML = require('js-yaml');
 
 const fieldSchema = require('./data/presets/schema/field.json');
 const presetSchema = require('./data/presets/schema/preset.json');
-const suggestionBrands = require('name-suggestion-index').brands.brands;
-const nameSuggestionsWikidata = require('name-suggestion-index').wikidata.wikidata;
+const groupSchema = require('./data/presets/schema/group.json');
+const nsi = require('name-suggestion-index');
 const deprecated = require('./data/deprecated.json').dataDeprecated;
 
 // fontawesome icons
@@ -49,19 +49,33 @@ module.exports = function buildData() {
         // Translation strings
         var tstrings = {
             categories: {},
+            groups: {},
             fields: {},
             presets: {}
         };
 
         // Font Awesome icons used
         var faIcons = {
+            'fas-smile-beam': {},
+            'fas-grin-beam': {},
+            'fas-laugh-beam': {},
+            'fas-sun': {},
+            'fas-moon': {},
+            'fas-edit': {},
+            'fas-map-marked-alt': {},
             'fas-i-cursor': {},
+            'fas-lock': {},
             'fas-long-arrow-alt-right': {},
             'fas-th-list': {}
         };
 
         // The Noun Project icons used
-        var tnpIcons = {};
+        var tnpIcons = {
+            'tnp-2009642': {} // car in tunnel
+        };
+
+        // all fields searchable under "add field"
+        var searchableFieldIDs = {};
 
         // Start clean
         shell.rm('-f', [
@@ -70,16 +84,20 @@ module.exports = function buildData() {
             'data/presets/presets.json',
             'data/presets.yaml',
             'data/taginfo.json',
+            'data/territory-languages.json',
             'dist/locales/en.json',
             'svg/fontawesome/*.svg',
         ]);
 
+        var groups = generateGroups(tstrings);
+
         var categories = generateCategories(tstrings, faIcons, tnpIcons);
-        var fields = generateFields(tstrings, faIcons);
-        var presets = generatePresets(tstrings, faIcons, tnpIcons);
+        var fields = generateFields(tstrings, faIcons, tnpIcons, searchableFieldIDs);
+        var presets = generatePresets(tstrings, faIcons, tnpIcons, searchableFieldIDs);
         var defaults = read('data/presets/defaults.json');
-        var translations = generateTranslations(fields, presets, tstrings);
+        var translations = generateTranslations(fields, presets, tstrings, searchableFieldIDs);
         var taginfo = generateTaginfo(presets, fields);
+        var territoryLanguages = generateTerritoryLanguages();
 
         // Additional consistency checks
         validateCategoryPresets(categories, presets);
@@ -101,12 +119,20 @@ module.exports = function buildData() {
                 prettyStringify({ presets: presets }, { maxLength: 9999 })
             ),
             writeFileProm(
+                'data/presets/groups.json',
+                prettyStringify({ groups: groups }, { maxLength: 1000 })
+            ),
+            writeFileProm(
                 'data/presets.yaml',
                 translationsToYAML(translations)
             ),
             writeFileProm(
                 'data/taginfo.json',
                 prettyStringify(taginfo, { maxLength: 9999 })
+            ),
+            writeFileProm(
+                'data/territory-languages.json',
+                prettyStringify({ dataTerritoryLanguages: territoryLanguages }, { maxLength: 9999 })
             ),
             writeEnJson(tstrings),
             writeFaIcons(faIcons),
@@ -168,7 +194,7 @@ function generateCategories(tstrings, faIcons, tnpIcons) {
 }
 
 
-function generateFields(tstrings, faIcons, tnpIcons) {
+function generateFields(tstrings, faIcons, tnpIcons, searchableFieldIDs) {
     var fields = {};
     glob.sync(__dirname + '/data/presets/fields/**/*.json').forEach(function(file) {
         var field = read(file);
@@ -177,8 +203,13 @@ function generateFields(tstrings, faIcons, tnpIcons) {
         validate(file, field, fieldSchema);
 
         var t = tstrings.fields[id] = {
-            label: field.label
+            label: field.label,
+            terms: (field.terms || []).join(',')
         };
+
+        if (field.universal) {
+            searchableFieldIDs[id] = true;
+        }
 
         if (field.placeholder) {
             t.placeholder = field.placeholder;
@@ -204,38 +235,81 @@ function generateFields(tstrings, faIcons, tnpIcons) {
     return fields;
 }
 
+function generateGroups(tstrings) {
+    var groups = {};
+    glob.sync(__dirname + '/data/presets/groups/**/*.json').forEach(function(file) {
+        var group = read(file);
+        var id = stripLeadingUnderscores(file.match(/presets\/groups\/([^.]*)\.json/)[1]);
+        validate(file, group, groupSchema);
+
+        var t = {};
+        if (group.name) {
+            t.name = group.name;
+        }
+        if (group.description) {
+            t.description = group.description;
+        }
+        if (Object.keys(t).length > 0) {
+            tstrings.groups[id] = t;
+        }
+
+        if (group.note) {
+            // notes are only used for developer documentation
+            delete group.note;
+        }
+
+        groups[id] = group;
+    });
+    return groups;
+}
+
 
 function suggestionsToPresets(presets) {
+    const brands = nsi.brands.brands;
+    const wikidata = nsi.wikidata.wikidata;
 
-    Object.keys(suggestionBrands).forEach(k => {
-        const suggestion = suggestionBrands[k];
+    Object.keys(brands).forEach(kvnd => {
+        const suggestion = brands[kvnd];
         const qid = suggestion.tags['brand:wikidata'];
         if (!qid || !/^Q\d+$/.test(qid)) return;   // wikidata tag missing or looks wrong..
 
-        const parts = k.split('|', 2);
-        const tag = parts[0].split('/', 2);
-        const key = tag[0];
-        const value = tag[1];
+        const parts = kvnd.split('|', 2);
+        const kv = parts[0];
         const name = parts[1].replace('~', ' ');
 
         let presetID, preset;
 
-        // sometimes we can find a more specific preset then key/value..
+        // sometimes we can choose a more specific preset then key/value..
         if (suggestion.tags.cuisine) {
-            presetID = key + '/' + value + '/' + suggestion.tags.cuisine;
-            preset = presets[presetID];
+            // cuisine can contain multiple values, so try them all in order
+            let cuisines = suggestion.tags.cuisine.split(';');
+            for (let i = 0; i < cuisines.length; i++) {
+                presetID = kv + '/' + cuisines[i].trim();
+                preset = presets[presetID];
+                if (preset) break;  // we matched one
+            }
+
         } else if (suggestion.tags.vending) {
             if (suggestion.tags.vending === 'parcel_pickup;parcel_mail_in') {
-                presetID = key + '/' + value + '/parcel_pickup_dropoff';
+                presetID = kv + '/parcel_pickup_dropoff';
             } else {
-                presetID = key + '/' + value + '/' + suggestion.tags.vending;
+                presetID = kv + '/' + suggestion.tags.vending;
             }
+            preset = presets[presetID];
+        }
+
+        // A few exceptions where the NSI tagging doesn't exactly match iD tagging..
+        if (kv === 'healthcare/clinic') {
+            presetID = 'amenity/clinic';
+            preset = presets[presetID];
+        } else if (kv === 'leisure/tanning_salon') {
+            presetID = 'shop/beauty/tanning';
             preset = presets[presetID];
         }
 
         // fallback to key/value
         if (!preset) {
-            presetID = key + '/' + value;
+            presetID = kv;
             preset = presets[presetID];
         }
 
@@ -245,17 +319,32 @@ function suggestionsToPresets(presets) {
             return;
         }
 
-        let wikidataTag = { 'brand:wikidata': qid };
-        let suggestionID = presetID + '/' + name;
+        let suggestionID = presetID + '/' + name.replace('/', '');
+
+        let tags = { 'brand:wikidata': qid };
+        for (let k in preset.tags) {
+            // prioritize suggestion tags over preset tags (for `vending`,`cuisine`, etc)
+            tags[k] = suggestion.tags[k] || preset.tags[k];
+        }
+
+        // Prefer a wiki commons logo sometimes.. #6361
+        const preferCommons = {
+            Q524757: true,    // KFC
+            Q177054: true,    // Burger King
+            Q1205312: true    // In-N-Out
+        };
 
         let logoURL;
-
-        let logoURLs = nameSuggestionsWikidata[qid] && nameSuggestionsWikidata[qid].logos;
+        let logoURLs = wikidata[qid] && wikidata[qid].logos;
         if (logoURLs) {
-            if (logoURLs.facebook) {
-                logoURL = logoURLs.facebook.replace('?type=square', '?type=large');
+            if (logoURLs.wikidata && preferCommons[qid]) {
+                logoURL = logoURLs.wikidata;
+            } else if (logoURLs.facebook) {
+                logoURL = logoURLs.facebook;
+            } else if (logoURLs.twitter) {
+                logoURL = logoURLs.twitter;
             } else {
-                logoURL = logoURLs.twitter || logoURLs.wikidata;
+                logoURL = logoURLs.wikidata;
             }
         }
 
@@ -264,10 +353,11 @@ function suggestionsToPresets(presets) {
             icon: preset.icon,
             imageURL: logoURL,
             geometry: preset.geometry,
-            tags: Object.assign({}, preset.tags, wikidataTag),
+            tags: tags,
             addTags: suggestion.tags,
             reference: preset.reference,
             countryCodes: suggestion.countryCodes,
+            terms: (suggestion.matchNames || []),
             matchScore: 2,
             suggestion: true
         };
@@ -284,7 +374,7 @@ function stripLeadingUnderscores(str) {
 }
 
 
-function generatePresets(tstrings, faIcons, tnpIcons) {
+function generatePresets(tstrings, faIcons, tnpIcons, searchableFieldIDs) {
     var presets = {};
 
     glob.sync(__dirname + '/data/presets/presets/**/*.json').forEach(function(file) {
@@ -297,6 +387,12 @@ function generatePresets(tstrings, faIcons, tnpIcons) {
             name: preset.name,
             terms: (preset.terms || []).join(',')
         };
+
+        if (preset.moreFields) {
+            preset.moreFields.forEach(function(fieldID) {
+                searchableFieldIDs[fieldID] = true;
+            });
+        }
 
         presets[id] = preset;
 
@@ -315,7 +411,7 @@ function generatePresets(tstrings, faIcons, tnpIcons) {
 }
 
 
-function generateTranslations(fields, presets, tstrings) {
+function generateTranslations(fields, presets, tstrings, searchableFieldIDs) {
     var translations = JSON.parse(JSON.stringify(tstrings));  // deep clone
 
     Object.keys(translations.fields).forEach(function(id) {
@@ -342,6 +438,15 @@ function generateTranslations(fields, presets, tstrings) {
 
         if (f.placeholder) {
             field['placeholder#'] = id + ' field placeholder';
+        }
+
+        if (searchableFieldIDs[id]) {
+            if (f.terms && f.terms.length) {
+                field['terms#'] = 'terms: ' + f.terms.join();
+            }
+            field.terms = '[translate with synonyms or related terms for \'' + field.label + '\', separated by commas]';
+        } else {
+            delete field.terms;
         }
     });
 
@@ -377,7 +482,7 @@ function generateTaginfo(presets, fields) {
             'description': 'Online editor for OSM data.',
             'project_url': 'https://github.com/openstreetmap/iD',
             'doc_url': 'https://github.com/openstreetmap/iD/blob/master/data/presets/README.md',
-            'icon_url': 'https://raw.githubusercontent.com/openstreetmap/iD/master/dist/img/logo.png',
+            'icon_url': 'https://cdn.jsdelivr.net/gh/openstreetmap/iD/dist/img/logo.png',
             'keywords': [
                 'editor'
             ]
@@ -408,20 +513,20 @@ function generateTaginfo(presets, fields) {
 
         // add icon
         if (/^maki-/.test(preset.icon)) {
-            tag.icon_url = 'https://raw.githubusercontent.com/mapbox/maki/master/icons/' +
-                preset.icon.replace(/^maki-/, '') + '-15.svg?sanitize=true';
+            tag.icon_url = 'https://cdn.jsdelivr.net/gh/mapbox/maki/icons/' +
+                preset.icon.replace(/^maki-/, '') + '-15.svg';
         } else if (/^temaki-/.test(preset.icon)) {
-            tag.icon_url = 'https://raw.githubusercontent.com/bhousel/temaki/master/icons/' +
-                preset.icon.replace(/^temaki-/, '') + '.svg?sanitize=true';
+            tag.icon_url = 'https://cdn.jsdelivr.net/gh/bhousel/temaki/icons/' +
+                preset.icon.replace(/^temaki-/, '') + '.svg';
         } else if (/^fa[srb]-/.test(preset.icon)) {
-            tag.icon_url = 'https://raw.githubusercontent.com/openstreetmap/iD/master/svg/fontawesome/' +
-                preset.icon + '.svg?sanitize=true';
+            tag.icon_url = 'https://cdn.jsdelivr.net/gh/openstreetmap/iD/svg/fontawesome/' +
+                preset.icon + '.svg';
         } else if (/^iD-/.test(preset.icon)) {
-            tag.icon_url = 'https://raw.githubusercontent.com/openstreetmap/iD/master/svg/iD-sprite/presets/' +
-                preset.icon.replace(/^iD-/, '') + '.svg?sanitize=true';
+            tag.icon_url = 'https://cdn.jsdelivr.net/gh/openstreetmap/iD/svg/iD-sprite/presets/' +
+                preset.icon.replace(/^iD-/, '') + '.svg';
         } else if (/^tnp-/.test(preset.icon)) {
-            tag.icon_url = 'https://raw.githubusercontent.com/openstreetmap/iD/master/svg/the-noun-project/' +
-                preset.icon.replace(/^tnp-/, '') + '.svg?sanitize=true';
+            tag.icon_url = 'https://cdn.jsdelivr.net/gh/openstreetmap/iD/svg/the-noun-project/' +
+                preset.icon.replace(/^tnp-/, '') + '.svg';
         }
 
         coalesceTags(taginfo, tag);
@@ -531,6 +636,23 @@ function generateTaginfo(presets, fields) {
     }
 
     return taginfo;
+}
+
+function generateTerritoryLanguages() {
+    var allRawInfo = read('./node_modules/cldr-core/supplemental/territoryInfo.json').supplemental.territoryInfo;
+    var territoryLanguages = {};
+    Object.keys(allRawInfo).forEach(function(territoryCode) {
+        var territoryLangInfo = allRawInfo[territoryCode].languagePopulation;
+        if (!territoryLangInfo) return;
+        var langCodes = Object.keys(territoryLangInfo);
+        territoryLanguages[territoryCode.toLowerCase()] = langCodes.sort(function(langCode1, langCode2) {
+            return parseFloat(territoryLangInfo[langCode2]._populationPercent) -
+                   parseFloat(territoryLangInfo[langCode1]._populationPercent);
+        }).map(function(langCode) {
+            return langCode.replace('_', '-');
+        });
+    });
+    return territoryLanguages;
 }
 
 function validateCategoryPresets(categories, presets) {

@@ -10,7 +10,10 @@
     ],
     "moreFields": [
         "covered",
-        "dog"
+        "dog",
+        "indoor",
+        "stroller",
+        "wheelchair"
     ],
     "geometry": [
         "line"

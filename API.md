@@ -19,8 +19,8 @@ of iD (e.g. `http://preview.ideditor.com/release/`), the following parameters ar
   _Example:_ `comment=CAR%20crisis%2C%20refugee%20areas%20in%20Cameroon`
 * __`disable_features`__ - Disables features in the list.<br/>
   _Example:_ `disable_features=water,service_roads,points,paths,boundaries`<br/>
-  _Available features:_ `points` `traffic_roads` `service_roads` `paths` `buildings` `landuse`
-  `boundaries` `water` `rail` `power` `past_future` `others`
+  _Available features:_ `points`, `traffic_roads`, `service_roads`, `paths`, `buildings`, `building_parts`, `indoor`, `landuse`,
+  `boundaries`, `water`, `rail`, `pistes`, `aerialways`, `power`, `past_future`, `others`
 * __`gpx`__ - A custom URL for loading a gpx track.  Specifying a `gpx` parameter will
   automatically enable the gpx layer for display.<br/>
   _Example:_ `gpx=https://tasks.hotosm.org/project/592/task/16.gpx`
@@ -29,12 +29,12 @@ of iD (e.g. `http://preview.ideditor.com/release/`), the following parameters ar
   optional and will be added automatically. (Note that hashtag-like strings are
   automatically detected in the `comment`).<br/>
   _Example:_ `hashtags=%23hotosm-task-592,%23MissingMaps`
-* __`id`__ - The character 'n', 'w', or 'r', followed by the OSM ID of a node, way or relation, respectively. Selects the specified entity, and, unless a `map` parameter is also provided, centers the map on it.<br/>
+* __`id`__ - The character 'n', 'w', or 'r', followed by the OSM ID of a node, way or relation, respectively. Selects the specified entity and centers the map on it, ignoring the `map` paramter.<br/>
   _Example:_ `id=n1207480649`
 * __`locale`__ - A code specifying the localization to use, affecting the language, layout, and keyboard shortcuts. The default locale is set by the browser.<br/>
   _Example:_ `locale=en-US`, `locale=de`<br/>
   _Available values:_ Any of the [supported locales](https://github.com/openstreetmap/iD/tree/master/dist/locales).
-* __`map`__ - A slash-separated `zoom/latitude/longitude`.<br/>
+* __`map`__ - A slash-separated `zoom/latitude/longitude`. This will have no effect if `id` is specified.<br/>
   _Example:_ `map=20.00/38.90085/-77.02271`
 * __`maprules`__ - A path to a [MapRules](https://github.com/radiant-maxar/maprules) service endpoint for enhanced tag validation.<br/>
   _Example:_ `maprules=https://path/to/file.json`
@@ -43,8 +43,9 @@ of iD (e.g. `http://preview.ideditor.com/release/`), the following parameters ar
 * __`photo_overlay`__ - The street-level photo overlay layers to enable.<br/>
   _Example:_ `photo_overlay=streetside,mapillary,openstreetcam`<br/>
   _Available values:_ `streetside` (Microsoft Bing), `mapillary`, `mapillary-signs`, `openstreetcam`
-* __`presets`__ - A path to an external presets file.<br/>
+* __`presets`__ - A path to an external presets file or a comma-separated list of preset IDs. These will be the only presets the user may select.<br/>
   _Example:_ `presets=https://path/to/presets.json`
+  _Example 2:_ `presets=building,highway/residential,highway/unclassified`
 * __`rtl=true`__ - Force iD into right-to-left mode (useful for testing).
 * __`source`__ - Prefills the changeset source. Pass a url encoded string.<br/>
   _Example:_ `source=Bing%3BMapillary`

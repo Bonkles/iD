@@ -1,14 +1,7 @@
 import _debounce from 'lodash-es/debounce';
 
-import {
-    descending as d3_descending,
-    ascending as d3_ascending
-} from 'd3-array';
-
-import {
-    event as d3_event,
-    select as d3_select
-} from 'd3-selection';
+import { descending as d3_descending, ascending as d3_ascending } from 'd3-array';
+import { event as d3_event, select as d3_select } from 'd3-selection';
 
 import { t, textDirection } from '../util/locale';
 import { svgIcon } from '../svg/icon';
@@ -19,7 +12,6 @@ import { uiDisclosure } from './disclosure';
 import { uiMapInMap } from './map_in_map';
 import { uiSettingsCustomBackground } from './settings/custom_background';
 import { uiTooltipHtml } from './tooltipHtml';
-import { utilCallWhenIdle } from '../util';
 import { tooltip } from '../util/tooltip';
 
 
@@ -143,6 +135,19 @@ export function uiBackground(context) {
             .classed('layer-custom', function(d) { return d.id === 'custom'; })
             .classed('best', function(d) { return d.best(); });
 
+        var label = enter
+            .append('label');
+
+        label
+            .append('input')
+            .attr('type', type)
+            .attr('name', 'layers')
+            .on('change', change);
+
+        label
+            .append('span')
+            .text(function(d) { return d.name(); });
+
         enter.filter(function(d) { return d.id === 'custom'; })
             .append('button')
             .attr('class', 'layer-browse')
@@ -163,23 +168,9 @@ export function uiBackground(context) {
             .append('span')
             .html('&#9733;');
 
-        var label = enter
-            .append('label');
-
-        label
-            .append('input')
-            .attr('type', type)
-            .attr('name', 'layers')
-            .on('change', change);
-
-        label
-            .append('span')
-            .text(function(d) { return d.name(); });
-
 
         layerList.selectAll('li')
-            .sort(sortSources)
-            .style('display', layerList.selectAll('li').data().length > 0 ? 'block' : 'none');
+            .sort(sortSources);
 
         layerList
             .call(updateLayerSelections);
@@ -279,7 +270,6 @@ export function uiBackground(context) {
 
 
     function update() {
-
         if (!_pane.select('.disclosure-wrap-background_list').classed('hide')) {
             updateBackgroundList();
         }
@@ -388,7 +378,10 @@ export function uiBackground(context) {
 
         // add listeners
         context.map()
-            .on('move.background-update', _debounce(utilCallWhenIdle(update), 1000));
+            .on('move.background-update',
+                _debounce(function() { window.requestIdleCallback(update); }, 1000)
+            );
+
 
         context.background()
             .on('change.background-update', update);

@@ -3,12 +3,14 @@
     "fields": [
         "name",
         "operator",
+        "operator/type",
         "address",
         "building",
         "opening_hours",
         "recycling_accepts"
     ],
     "moreFields": [
+        "charge_fee",
         "fee",
         "payment_multi_fee",
         "website",

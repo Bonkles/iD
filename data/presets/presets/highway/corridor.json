@@ -8,13 +8,20 @@
         "wheelchair"
     ],
     "moreFields": [
-        "maxheight"
+        "covered",
+        "indoor",
+        "maxheight",
+        "stroller"
     ],
     "geometry": [
         "line"
     ],
     "tags": {
         "highway": "corridor"
+    },
+    "addTags": {
+        "highway": "corridor",
+        "indoor": "yes"
     },
     "terms": [
         "gallery",

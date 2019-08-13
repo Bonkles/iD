@@ -9,10 +9,7 @@ import rbush from 'rbush';
 import { JXON } from '../util/jxon';
 import { geoExtent, geoRawMercator, geoVecAdd, geoZoomToScale } from '../geo';
 import { osmEntity, osmNode, osmNote, osmRelation, osmWay } from '../osm';
-import {
-    utilArrayChunk, utilArrayGroupBy, utilArrayUniq, utilRebind,
-    utilIdleWorker, utilTiler, utilQsString
-} from '../util';
+import { utilArrayChunk, utilArrayGroupBy, utilArrayUniq, utilRebind, utilTiler, utilQsString } from '../util';
 
 
 var tiler = utilTiler();
@@ -32,6 +29,7 @@ var _noteCache = { toLoad: {}, loaded: {}, inflight: {}, inflightPost: {}, note:
 var _userCache = { toLoad: {}, user: {} };
 var _changeset = {};
 
+var _deferred = new Set();
 var _connectionID = 1;
 var _tileZoom = 16;
 var _noteZoom = 12;
@@ -288,12 +286,19 @@ function parseXML(xml, callback, options) {
 
     var root = xml.childNodes[0];
     var children = root.childNodes;
-    utilIdleWorker(children, parseChild, done);
 
-
-    function done(results) {
+    var handle = window.requestIdleCallback(function() {
+        var results = [];
+        var result;
+        for (var i = 0; i < children.length; i++) {
+            result = parseChild(children[i]);
+            if (result) results.push(result);
+        }
         callback(null, results);
-    }
+    });
+
+    _deferred.add(handle);
+
 
     function parseChild(child) {
         var parser = parsers[child.nodeName];
@@ -360,6 +365,11 @@ export default {
 
 
     reset: function() {
+        Array.from(_deferred).forEach(function(handle) {
+            window.cancelIdleCallback(handle);
+            _deferred.delete(handle);
+        });
+
         _connectionID++;
         _userChangesets = undefined;
         _userDetails = undefined;
@@ -501,9 +511,9 @@ export default {
 
         this.loadFromAPI(
             '/api/0.6/' + type + '/' + osmID + (type !== 'node' ? '/full' : ''),
-            function(err, entities) {
+            wrapcb(this, function(err, entities) {
                 if (callback) callback(err, { data: entities });
-            },
+            }, _connectionID),
             options
         );
     },
@@ -528,8 +538,10 @@ export default {
 
     // Load multiple entities in chunks
     // (note: callback may be called multiple times)
+    // Unlike `loadEntity`, child nodes and members are not fetched
     // GET /api/0.6/[nodes|ways|relations]?#parameters
     loadMultiple: function(ids, callback) {
+        var cid = _connectionID;
         var that = this;
         var groups = utilArrayGroupBy(utilArrayUniq(ids), osmEntity.id.type);
 
@@ -541,9 +553,9 @@ export default {
             utilArrayChunk(osmIDs, 150).forEach(function(arr) {
                 that.loadFromAPI(
                     '/api/0.6/' + type + '?' + type + '=' + arr.join(),
-                    function(err, entities) {
+                    wrapcb(that, function(err, entities) {
                         if (callback) callback(err, { data: entities });
-                    },
+                    }, cid),
                     options
                 );
             });
@@ -831,24 +843,26 @@ export default {
 
         _tileCache.inflight[tile.id] = this.loadFromAPI(
             path + tile.extent.toParam(),
-            function(err, parsed) {
-                delete _tileCache.inflight[tile.id];
-                if (!err) {
-                    delete _tileCache.toLoad[tile.id];
-                    _tileCache.loaded[tile.id] = true;
-                    var bbox = tile.extent.bbox();
-                    bbox.id = tile.id;
-                    _tileCache.rtree.insert(bbox);
-                }
-                if (callback) {
-                    callback(err, Object.assign({ data: parsed }, tile));
-                }
-                if (!hasInflightRequests(_tileCache)) {
-                    dispatch.call('loaded');     // stop the spinner
-                }
-            },
+            wrapcb(this, tileCallback, _connectionID),
             options
         );
+
+        function tileCallback(err, parsed) {
+            delete _tileCache.inflight[tile.id];
+            if (!err) {
+                delete _tileCache.toLoad[tile.id];
+                _tileCache.loaded[tile.id] = true;
+                var bbox = tile.extent.bbox();
+                bbox.id = tile.id;
+                _tileCache.rtree.insert(bbox);
+            }
+            if (callback) {
+                callback(err, Object.assign({ data: parsed }, tile));
+            }
+            if (!hasInflightRequests(_tileCache)) {
+                dispatch.call('loaded');     // stop the spinner
+            }
+        }
     },
 
 
@@ -860,13 +874,19 @@ export default {
 
     // load the tile that covers the given `loc`
     loadTileAtLoc: function(loc, callback) {
+        // Back off if the toLoad queue is filling up.. re #6417
+        // (Currently `loadTileAtLoc` requests are considered low priority - used by operations to
+        // let users safely edit geometries which extend to unloaded tiles.  We can drop some.)
+        if (Object.keys(_tileCache.toLoad).length > 50) return;
+
         var k = geoZoomToScale(_tileZoom + 1);
         var offset = geoRawMercator().scale(k)(loc);
         var projection = geoRawMercator().transform({ k: k, x: -offset[0], y: -offset[1] });
         var tiles = tiler.zoomExtent([_tileZoom, _tileZoom]).getTiles(projection);
 
         tiles.forEach(function(tile) {
-            if (_tileCache.toLoad[tile.id]) return;  // already in queue
+            if (_tileCache.toLoad[tile.id] || _tileCache.loaded[tile.id] || _tileCache.inflight[tile.id]) return;
+
             _tileCache.toLoad[tile.id] = true;
             this.loadTile(tile, callback);
         }, this);

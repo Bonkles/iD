@@ -2,10 +2,13 @@
     "icon": "maki-car",
     "fields": [
         "operator",
+        "operator/type",
         "parking",
         "capacity",
         "access_simple",
         "fee",
+        "payment_multi_fee",
+        "charge_fee",
         "surface"
     ],
     "moreFields": [
@@ -15,8 +18,8 @@
         "fax",
         "maxstay",
         "name",
+        "opening_hours",
         "park_ride",
-        "payment_multi_fee",
         "phone",
         "ref",
         "supervised",

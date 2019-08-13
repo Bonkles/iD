@@ -49,15 +49,19 @@ export function validationGenericName() {
     }
 
 
-    var validation = function checkGenericName(entity, context) {
+    var validation = function checkGenericName(entity) {
         var generic = isGenericName(entity);
         if (!generic) return [];
 
-        var preset = utilPreset(entity, context);
         return [new validationIssue({
             type: type,
             severity: 'warning',
-            message: t('issues.generic_name.message', {feature: preset.name(), name: generic}),
+            message: function(context) {
+                var entity = context.hasEntity(this.entityIds[0]);
+                if (!entity) return '';
+                var preset = utilPreset(entity, context);
+                return t('issues.generic_name.message', { feature: preset.name(), name: generic });
+            },
             reference: showReference,
             entityIds: [entity.id],
             hash: generic,
@@ -65,7 +69,7 @@ export function validationGenericName() {
                 new validationIssueFix({
                     icon: 'iD-operation-delete',
                     title: t('issues.fix.remove_generic_name.title'),
-                    onClick: function() {
+                    onClick: function(context) {
                         var entityId = this.issue.entityIds[0];
                         var entity = context.entity(entityId);
                         var tags = Object.assign({}, entity.tags);   // shallow copy

@@ -12,12 +12,16 @@ export function uiEntityIssues(context) {
     var _entityID;
 
     // Refresh on validated events
-    context.validator().on('validated.entity_issues', function() {
-         _selection.selectAll('.disclosure-wrap-entity_issues')
-             .call(render);
+    context.validator()
+        .on('validated.entity_issues', function() {
+             _selection.selectAll('.disclosure-wrap-entity_issues')
+                 .call(render);
 
-        update();
-    });
+            update();
+        })
+        .on('focusedIssue.entity_issues', function(issue) {
+             makeActiveIssue(issue.id);
+        });
 
 
     function entityIssues(selection) {
@@ -31,9 +35,19 @@ export function uiEntityIssues(context) {
         update();
     }
 
+    function getIssues() {
+        return context.validator().getEntityIssues(_entityID, { includeDisabledRules: true });
+    }
+
+    function makeActiveIssue(issueID) {
+        _activeIssueID = issueID;
+        _selection.selectAll('.issue-container')
+            .classed('active', function(d) { return d.id === _activeIssueID; });
+    }
 
     function update() {
-        var issues = context.validator().getEntityIssues(_entityID);
+
+        var issues = getIssues();
 
         _selection
             .classed('hide', issues.length === 0);
@@ -44,7 +58,7 @@ export function uiEntityIssues(context) {
 
 
     function render(selection) {
-        var issues = context.validator().getEntityIssues(_entityID);
+        var issues = getIssues();
         _activeIssueID = issues.length > 0 ? issues[0].id : null;
 
 
@@ -82,14 +96,13 @@ export function uiEntityIssues(context) {
             .append('div')
             .attr('class', 'issue-label')
             .on('click', function(d) {
-                _activeIssueID = d.id;   // expand only the clicked item
-                selection.selectAll('.issue-container')
-                    .classed('active', function(d) { return d.id === _activeIssueID; });
+
+                makeActiveIssue(d.id); // expand only the clicked item
 
                 var extent = d.extent(context.graph());
                 if (extent) {
                     var setZoom = Math.max(context.map().zoom(), 19);
-                    context.map().centerZoomEase(extent.center(), setZoom);
+                    context.map().unobscuredCenterZoomEase(extent.center(), setZoom);
                 }
             });
 
@@ -108,8 +121,7 @@ export function uiEntityIssues(context) {
 
         textEnter
             .append('span')
-            .attr('class', 'issue-message')
-            .text(function(d) { return d.message; });
+            .attr('class', 'issue-message');
 
 
         var infoButton = labelsEnter
@@ -144,7 +156,10 @@ export function uiEntityIssues(context) {
                         .transition()
                         .duration(200)
                         .style('max-height', '200px')
-                        .style('opacity', '1');
+                        .style('opacity', '1')
+                        .on('end', function () {
+                            info.style('max-height', null);
+                        });
                 }
             });
 
@@ -173,6 +188,10 @@ export function uiEntityIssues(context) {
             .merge(containersEnter)
             .classed('active', function(d) { return d.id === _activeIssueID; });
 
+        containers.selectAll('.issue-message')
+            .text(function(d) {
+                return d.message(context);
+            });
 
         // fixes
         var fixLists = containers.selectAll('.issue-fix-list');
@@ -186,12 +205,28 @@ export function uiEntityIssues(context) {
                 return 'issue-fix-item ' + (d.onClick ? 'actionable' : '');
             })
             .on('click', function(d) {
-                if (d.onClick) {
-                    var issueEntityIDs = d.issue.entityIds;
-                    utilHighlightEntities(issueEntityIDs.concat(d.entityIds), false, context);
-                    d.onClick();
-                    window.setTimeout(function() { context.validator().validate(); }, 300);  // after any transition
-                }
+                // not all fixes are actionable
+                if (!d.onClick) return;
+
+                // Don't run another fix for this issue within a second of running one
+                // (Necessary for "Select a feature type" fix. Most fixes should only ever run once)
+                if (d.issue.dateLastRanFix && new Date() - d.issue.dateLastRanFix < 1000) return;
+                d.issue.dateLastRanFix = new Date();
+
+                // remove hover-highlighting
+                utilHighlightEntities(d.issue.entityIds.concat(d.entityIds), false, context);
+
+                new Promise(function(resolve, reject) {
+                    d.onClick(context, resolve, reject);
+                    if (d.onClick.length <= 1) {
+                        // if the fix doesn't take any completion parameters then consider it resolved
+                        resolve();
+                    }
+                })
+                .then(function() {
+                    // revalidate whenever the fix has finished running successfully
+                    context.validator().validate();
+                });
             })
             .on('mouseover.highlight', function(d) {
                 utilHighlightEntities(d.entityIds, true, context);

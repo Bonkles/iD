@@ -1,5 +1,4 @@
 import { t } from '../util/locale';
-import { modeSelect } from '../modes/select';
 import { svgIcon } from '../svg/icon';
 import { tooltip } from '../util/tooltip';
 import { utilEntityOrMemberSelector } from '../util';
@@ -9,7 +8,7 @@ export function uiCommitWarnings(context) {
 
     function commitWarnings(selection) {
         var issuesBySeverity = context.validator()
-            .getIssuesBySeverity({ what: 'edited', where: 'all' });
+            .getIssuesBySeverity({ what: 'edited', where: 'all', includeDisabledRules: true });
 
         for (var severity in issuesBySeverity) {
             var issues = issuesBySeverity[severity];
@@ -53,7 +52,7 @@ export function uiCommitWarnings(context) {
 
             itemsEnter
                 .append('strong')
-                .text(function(d) { return d.message; });
+                .attr('class', 'issue-message');
 
             itemsEnter.filter(function(d) { return d.tooltip; })
                 .call(tooltip()
@@ -64,6 +63,10 @@ export function uiCommitWarnings(context) {
             items = itemsEnter
                 .merge(items);
 
+            items.selectAll('.issue-message')
+                .text(function(d) {
+                    return d.message(context);
+                });
 
             items
                 .on('mouseover', function(d) {
@@ -81,10 +84,7 @@ export function uiCommitWarnings(context) {
                         .classed('hover', false);
                 })
                 .on('click', function(d) {
-                    if (d.entityIds && d.entityIds.length > 0) {
-                        context.map().zoomTo(context.entity(d.entityIds[0]));
-                        context.enter(modeSelect(context, d.entityIds));
-                    }
+                    context.validator().focusIssue(d);
                 });
         }
     }
