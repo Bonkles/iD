@@ -15,17 +15,21 @@ export function uiToolStructure(context) {
     tool.id = 'structure';
     tool.label = t('presets.fields.structure.label');
     tool.key = t('toolbar.structure.key');
+    tool.iconName = 'iD-structure-bridge';
+    tool.iconClass = 'icon-30';
 
     var structureNone = {
         id: 'none',
-        icon: 'iD-other-line',
+        icon: 'iD-structure-none',
         label: t('toolbar.structure.none.title'),
+        iconClass: 'icon-30',
         tags: {}
     };
     var structureBridge = {
         id: 'bridge',
-        icon: 'maki-bridge-15',
+        icon: 'iD-structure-bridge',
         label: t('presets.fields.structure.options.bridge'),
+        iconClass: 'icon-30',
         tags: {
             bridge: 'yes'
         },
@@ -36,8 +40,9 @@ export function uiToolStructure(context) {
     };
     var structureTunnel = {
         id: 'tunnel',
-        icon: 'tnp-2009642',
+        icon: 'iD-structure-tunnel',
         label: t('presets.fields.structure.options.tunnel'),
+        iconClass: 'icon-30',
         tags: {
             tunnel: 'yes'
         },
@@ -109,7 +114,13 @@ export function uiToolStructure(context) {
                         context.perform(action);
 
                         context.enter(
-                            modeDrawLine(context, prevWay.id, context.graph(), context.graph(), mode.button, false, mode.addMode)
+                            modeDrawLine(context, {
+                                wayID: prevWay.id,
+                                startGraph: context.graph(),
+                                baselineGraph: context.graph(),
+                                button: mode.button,
+                                addMode: mode.addMode
+                            })
                         );
                     }
                 }
@@ -128,9 +139,15 @@ export function uiToolStructure(context) {
                 );
 
                 prevWayID = way.id;
-
                 context.enter(
-                    modeDrawLine(context, newWay.id, startGraph, context.graph(), mode.button, isLast ? false : 'prefix', mode.addMode)
+                    modeDrawLine(context, {
+                        wayID: newWay.id,
+                        startGraph: startGraph,
+                        baselineGraph: context.graph(),
+                        button: mode.button,
+                        affix: isLast ? false : 'prefix',
+                        addMode: mode.addMode
+                    })
                 );
             }
         }
@@ -164,8 +181,8 @@ export function uiToolStructure(context) {
         return structureNone;
     };
 
-    var parentAvailable = tool.available;
-    tool.available = function() {
+    var parentAvailable = tool.allowed;
+    tool.allowed = function() {
         var modeID = context.mode().id;
         return parentAvailable() && (modeID === 'add-line' || modeID === 'draw-line');
     };

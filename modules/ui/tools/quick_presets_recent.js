@@ -6,8 +6,11 @@ export function uiToolAddRecent(context) {
     var tool = uiToolQuickPresets(context);
     tool.id = 'add_recent';
     tool.label = t('toolbar.recent');
+    tool.iconName = 'fas-clock';
 
     tool.itemsToDraw = function() {
+        if (context.presets().getAddable().length) return [];
+
         var maxShown = 10;
         var maxRecents = 5;
 
@@ -16,7 +19,7 @@ export function uiToolAddRecent(context) {
 
         function isAFavorite(recent) {
             return favorites.some(function(favorite) {
-                return favorite.matches(recent.preset, recent.geometry);
+                return favorite.matches(recent.preset);
             });
         }
 
@@ -24,7 +27,7 @@ export function uiToolAddRecent(context) {
         var items = [];
         if (maxRecents > 0) {
             var recents = context.presets().getRecents().filter(function(recent) {
-                return recent.geometry !== 'relation';
+                return recent.preset.geometry.length > 1 || recent.preset.geometry[0] !== 'relation';
             });
             for (var i in recents) {
                 var recent = recents[i];

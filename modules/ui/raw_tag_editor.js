@@ -278,13 +278,13 @@ export function uiRawTagEditor(context) {
         items.selectAll('input.key')
             .attr('title', function(d) { return d.key; })
             .call(utilGetSetValue, function(d) { return d.key; })
-            .property('disabled', function(d) {
-                return isReadOnly(d) || (typeof d.value !== 'string');
+            .attr('readonly', function(d) {
+                return (isReadOnly(d) || (typeof d.value !== 'string')) || null;
             });
 
         items.selectAll('input.value')
             .attr('title', function(d) {
-                return typeof d.value === 'string' ? d.value : t('inspector.multiple_values');
+                return typeof d.value === 'string' ? d.value : Array.from(_keyValues[d.key]).sort().join('; ');
             })
             .attr('placeholder', function(d) {
                 return typeof d.value === 'string' ? null : t('inspector.multiple_values');
@@ -292,7 +292,9 @@ export function uiRawTagEditor(context) {
             .call(utilGetSetValue, function(d) {
                 return typeof d.value === 'string' ? d.value : '';
             })
-            .property('disabled', isReadOnly);
+            .attr('readonly', function(d) {
+                return isReadOnly(d) || null;
+            });
 
         items.selectAll('button.remove')
             .on('mousedown', removeTag);  // 'click' fires too late - #5878
@@ -462,6 +464,8 @@ export function uiRawTagEditor(context) {
 
 
         function keyChange(d) {
+            if (d3_select(this).attr('readonly')) return;
+
             var kOld = d.key;
             var kNew = this.value.trim();
             var row = this.parentNode.parentNode;

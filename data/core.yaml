@@ -20,6 +20,8 @@ en:
     favorites: Favorites
     add_feature: Add Feature
     finish: Finish
+    geometry:
+      key: G
     repeat:
       title: Repeat
       tooltip:
@@ -37,17 +39,27 @@ en:
       none:
         title: None
       key: S
+    support:
+      title: Support
+      pole:
+        title: Pole
+      tower:
+        title: Tower
+      key: S
+    toolbox:
+      title: Tools
+      tooltip: Customize the toolbar.
   assistant:
     mode:
-      adding: Adding
       authenticating: Authenticating
       drawing: Drawing
-      editing: Editing
+      inspecting: Inspecting
       mapping: Mapping
+      placing: Placing
       saving: Saving
-      viewing: Viewing
     instructions:
       add_point: Click the center of the feature.
+      add_vertex: Click the point along a line or area where the feature occurs.
       add_line: Click the starting point of the feature.
       draw_line: Place points along the feature's centerline.
       add_area: Click any corner of the feature.
@@ -60,9 +72,24 @@ en:
       evening: Good Evening
       # "Good Night" isn't a greeting in English but it can be in some languages
       night: Good Evening
-    welcome:
-      first_time: "You’re editing <b>OpenStreetMap</b>: the free, collaborative world map.<br/>If this is your first time here, consider taking the <a>quick-start tutorial</a>.<br/>Thanks for contributing. Have fun!"
-      return: "Welcome back. Ready to make the map even better?"
+    notice: Notice
+    launch:
+      osm_info: "You’re editing <b>OpenStreetMap</b>: the free, collaborative world map."
+      first_time_tutorial: "If this is your first time here, consider taking the <a>quick-start tutorial</a>."
+      thanks_have_fun: Thanks for contributing. Have fun!
+      generic_welcome:
+        0: Ready to make the map even better?
+        1: What a great day for mapping.
+      welcome_back_user: "Welcome back, {displayName}."
+      changesets: "You've contributed {changesets} changesets to OpenStreetMap so far."
+      changesets_date: "You've contributed {changesets} changesets to OpenStreetMap since {joinDate}."
+      anniversary:
+        happy_anniversary: Happy Anniversary
+        years:
+          first: "Congratulations on your first year of mapping, {displayName}!"
+          subsequent: "Congratulations on {years} years of mapping, {displayName}!"
+      blocks:
+        active: Your OpenStreetMap account, {displayName}, has an active block and cannot upload changes.
       start_mapping: Start Mapping
     restore:
       title: Restore
@@ -79,7 +106,6 @@ en:
         thank_you: Thank You!
         just_improved: "You've just improved OpenStreetMap around {location}."
         propagation_help: Your changes will be live momentarily. Some maps take longer to update than others.
-      keep_mapping: Keep Mapping
     feature_count:
       multiple: "{count} Features"
   modes:
@@ -113,14 +139,6 @@ en:
       key: N
     add_preset:
       title: "Add {feature}"
-      point:
-        title: "Add {feature} as a point"
-      line:
-        title: "Add {feature} as a line"
-      area:
-        title: "Add {feature} as an area"
-      building:
-        title: "Add {feature} as a building"
     browse:
       title: Browse
       description: Pan and zoom the map.
@@ -650,7 +668,7 @@ en:
     switch: Switch back to this background
     custom: Custom
     overlays: Overlays
-    imagery_source_faq: Imagery Info / Report a Problem
+    imagery_problem_faq: Report an Imagery Problem
     reset: reset
     reset_all: Reset All
     display_options: Display Options
@@ -662,6 +680,9 @@ en:
       description: Show Minimap
       tooltip: Show a zoomed out map to help locate the area currently displayed.
       key: '/'
+    panel:
+      description: Show Detail Panel
+      tooltip: Show advanced background information.
     fix_misalignment: Adjust imagery offset
     offset: "Drag anywhere in the gray area below to adjust the imagery offset, or enter the offset values in meters."
   map_data:
@@ -1080,6 +1101,10 @@ en:
     hires: "High resolution"
   mapillary_images:
     tooltip: "Street-level photos from Mapillary"
+  mapillary_map_features:
+    title: "Map Features"
+    tooltip: "Map features from Mapillary"
+    request_data: "Request Data"
   mapillary:
     title: Mapillary
     signs:

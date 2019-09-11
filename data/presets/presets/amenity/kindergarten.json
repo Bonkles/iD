@@ -10,14 +10,16 @@
     "moreFields": [
         "email",
         "fax",
+        "min_age",
+        "max_age",
         "opening_hours",
         "payment_multi",
         "website",
         "wheelchair"
     ],
     "geometry": [
-        "point",
-        "area"
+        "area",
+        "point"
     ],
     "terms": [
         "kindergarden",

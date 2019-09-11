@@ -65,10 +65,12 @@ export function uiInit(context) {
         var content = container
             .append('div')
             .attr('id', 'content')
-            .attr('class', 'active');
+            .attr('class', context.history().hasRestorableChanges() ? 'inactive' : 'active');
 
         // Top toolbar
         content
+            .append('div')
+            .attr('id', 'bar-wrap')
             .append('div')
             .attr('id', 'bar')
             .attr('class', 'fillD')
@@ -157,11 +159,6 @@ export function uiInit(context) {
             .attr('id', 'footer-wrap')
             .attr('class', 'footer-show');
 
-        footerWrap
-            .append('div')
-            .attr('id', 'scale-block')
-            .call(uiScale(context));
-
         var aboutList = footerWrap
             .append('div')
             .attr('id', 'info-block')
@@ -184,7 +181,6 @@ export function uiInit(context) {
         issueLinks
             .append('a')
             .attr('target', '_blank')
-            .attr('tabindex', -1)
             .attr('href', 'https://github.com/openstreetmap/iD/issues')
             .call(svgIcon('#iD-icon-bug', 'light'))
             .call(tooltip().title(t('report_a_bug')).placement('top'));
@@ -192,7 +188,6 @@ export function uiInit(context) {
         issueLinks
             .append('a')
             .attr('target', '_blank')
-            .attr('tabindex', -1)
             .attr('href', 'https://github.com/openstreetmap/iD/blob/master/CONTRIBUTING.md#translating')
             .call(svgIcon('#iD-icon-translate', 'light'))
             .call(tooltip().title(t('help_translate')).placement('top'));
@@ -209,6 +204,10 @@ export function uiInit(context) {
             .attr('tabindex', -1)
             .call(uiContributors(context));
 
+        footerWrap
+            .append('div')
+            .attr('id', 'scale-block')
+            .call(uiScale(context));
 
         // Setup map dimensions and move map to initial center/zoom.
         // This should happen after #content and toolbars exist.
@@ -238,11 +237,13 @@ export function uiInit(context) {
             .call(issues.renderPane)
             .call(help.renderPane);
 
+        ui.info = uiInfo(context);
+
         // Add absolutely-positioned elements that sit on top of the map
         // This should happen after the map is ready (center/zoom)
         overMap
             .call(uiMapInMap(context))
-            .call(uiInfo(context))
+            .call(ui.info)
             .call(uiNotice(context));
 
 

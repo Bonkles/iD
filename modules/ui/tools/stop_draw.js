@@ -30,10 +30,11 @@ export function uiToolStopDraw(context) {
             }
         },
         tooltipKey: 'Esc',
-        barButtonClass: 'wide'
+        barButtonClass: 'wide',
+        userToggleable: false
     });
 
-    tool.available = function() {
+    tool.allowed = function() {
         var newCancelOrFinish = drawCancelOrFinish();
         if (newCancelOrFinish) {
             cancelOrFinish = newCancelOrFinish;

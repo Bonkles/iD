@@ -8,17 +8,21 @@ export function uiToolWaySegments(context) {
     tool.id = 'way_segments';
     tool.label = t('toolbar.segments.title');
     tool.key = t('toolbar.segments.key');
+    tool.iconName = 'iD-segment-orthogonal';
+    tool.iconClass = 'icon-30';
 
     tool.items = [
         {
             id: 'straight',
             icon: 'iD-segment-straight',
-            label: t('toolbar.segments.straight.title')
+            label: t('toolbar.segments.straight.title'),
+            iconClass: 'icon-30'
         },
         {
             id: 'orthogonal',
             icon: 'iD-segment-orthogonal',
-            label: t('toolbar.segments.orthogonal.title')
+            label: t('toolbar.segments.orthogonal.title'),
+            iconClass: 'icon-30'
         }
     ];
 
@@ -31,7 +35,7 @@ export function uiToolWaySegments(context) {
         return tool.items.filter(function(d) { return d.id === id; })[0];
     };
 
-    tool.available = function() {
+    tool.allowed = function() {
         var mode = context.mode();
         return mode.id.indexOf('line') !== -1 || mode.id.indexOf('area') !== -1;
     };

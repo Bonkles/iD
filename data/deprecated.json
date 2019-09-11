@@ -237,6 +237,10 @@
       "replace": {"craft": "sculptor"}
     },
     {
+      "old": {"crossing": "island"},
+      "replace": {"crossing:island": "yes"}
+    },
+    {
       "old": {"crossing": "zebra"},
       "replace": {"crossing": "marked"}
     },
@@ -361,6 +365,30 @@
       "replace": {"generator:source": "solar", "generator:method": "photovoltaic"}
     },
     {
+      "old": {"golf": "faiway"},
+      "replace": {"golf": "fairway"}
+    },
+    {
+      "old": {"golf": "putting_green"},
+      "replace": {"golf": "green"}
+    },
+    {
+      "old": {"golf": "sand_trap"},
+      "replace": {"golf": "bunker"}
+    },
+    {
+      "old": {"golf": "tee_area"},
+      "replace": {"golf": "tee"}
+    },
+    {
+      "old": {"golf": "tee_box"},
+      "replace": {"golf": "tee"}
+    },
+    {
+      "old": {"golf": "teebox"},
+      "replace": {"golf": "tee"}
+    },
+    {
       "old": {"highway": "abandoned"},
       "replace": {"abandoned:highway": "*"}
     },
@@ -452,6 +480,10 @@
       "replace": {"landuse": "farmland"}
     },
     {
+      "old": {"landuse": "garden"},
+      "replace": {"leisure": "garden"}
+    },
+    {
       "old": {"landuse": "pond"},
       "replace": {"natural": "water", "water": "pond"}
     },
@@ -478,6 +510,10 @@
     {
       "old": {"leisure": "club"},
       "replace": {"club": "*"}
+    },
+    {
+      "old": {"leisure": "golf_pin"},
+      "replace": {"golf": "pin"}
     },
     {
       "old": {"leisure": "ice_rink", "sport": "hockey"},
@@ -540,8 +576,16 @@
       "replace": {"craft": "winery"}
     },
     {
+      "old": {"maxage": "*"},
+      "replace": {"max_age": "$1"}
+    },
+    {
       "old": {"memorial": "plate"},
       "replace": {"memorial": "plaque"}
+    },
+    {
+      "old": {"minage": "*"},
+      "replace": {"min_age": "$1"}
     },
     {
       "old": {"mining_resource": "*"},
@@ -888,6 +932,14 @@
     {
       "old": {"tower:type": "power"},
       "replace": {"power": "tower"}
+    },
+    {
+      "old": {"tower:type": "anchor"},
+      "replace": {"line_attachment": "anchor"}
+    },
+    {
+      "old": {"tower:type": "suspension"},
+      "replace": {"line_attachment": "suspension"}
     },
     {
       "old": {"type": "broad_leaved"},

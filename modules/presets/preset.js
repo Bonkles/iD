@@ -4,7 +4,7 @@ import { groupManager } from '../entities/group_manager';
 import { utilArrayUniq, utilObjectOmit } from '../util';
 
 
-export function presetPreset(id, preset, fields, visible, rawPresets) {
+export function presetPreset(id, preset, fields, addable, rawPresets) {
     preset = Object.assign({}, preset);   // shallow copy
 
     preset.id = id;
@@ -99,7 +99,7 @@ export function presetPreset(id, preset, fields, visible, rawPresets) {
 
     preset.geometry = (preset.geometry || []);
 
-    visible = visible || false;
+    addable = addable || false;
 
     preset.matchGeometry = function(geometry) {
         return preset.geometry.indexOf(geometry) >= 0;
@@ -111,20 +111,33 @@ export function presetPreset(id, preset, fields, visible, rawPresets) {
 
     preset.matchScore = function(entityTags) {
         var tags = preset.tags;
+        var seen = {};
         var score = 0;
+        var k;
 
-        for (var t in tags) {
-            if (entityTags[t] === tags[t]) {
+        // match on tags
+        for (k in tags) {
+            seen[k] = true;
+            if (entityTags[k] === tags[k]) {
                 score += preset.originalScore;
-            } else if (tags[t] === '*' && t in entityTags) {
+            } else if (tags[k] === '*' && k in entityTags) {
                 score += preset.originalScore / 2;
             } else {
                 return -1;
             }
         }
 
+        // boost score for additional matches in addTags - #6802
+        var addTags = preset.addTags;
+        for (k in addTags) {
+            if (!seen[k] && entityTags[k] === addTags[k]) {
+                score += preset.originalScore;
+            }
+        }
+
         return score;
     };
+
 
     var _textCache = {};
 
@@ -166,10 +179,10 @@ export function presetPreset(id, preset, fields, visible, rawPresets) {
         return tagCount === 0 || (tagCount === 1 && preset.tags.hasOwnProperty('area'));
     };
 
-    preset.visible = function(val) {
-        if (!arguments.length) return visible;
-        visible = val;
-        return visible;
+    preset.addable = function(val) {
+        if (!arguments.length) return addable;
+        addable = val;
+        return addable;
     };
 
 
@@ -304,6 +317,37 @@ export function presetPreset(id, preset, fields, visible, rawPresets) {
     if (!window.mocha) {
         preset.groupsByGeometry = loadGroups();
     }
+
+    // The geometry type to use when adding a new feature of this preset
+    preset.defaultAddGeometry = function(context, allowedGeometries) {
+        var geometry = preset.geometry.slice().filter(function(geom) {
+            if (allowedGeometries && allowedGeometries.indexOf(geom) === -1) return false;
+            if (context.features().isHiddenPreset(preset, geom)) return false;
+            return true;
+        });
+
+        var mostRecentAddGeom = context.storage('preset.' + preset.id + '.addGeom');
+        if (mostRecentAddGeom === 'vertex') mostRecentAddGeom = 'point';
+        if (mostRecentAddGeom && geometry.indexOf(mostRecentAddGeom) !== -1) {
+            return mostRecentAddGeom;
+        }
+        var vertexIndex = geometry.indexOf('vertex');
+        if (vertexIndex !== -1 && geometry.indexOf('point') !== -1) {
+            // both point and vertex allowed, just use point
+            geometry.splice(vertexIndex, 1);
+        }
+        if (geometry.length) {
+            return geometry[0];
+        }
+        return null;
+    };
+
+    preset.setMostRecentAddGeometry = function(context, geometry) {
+        if (preset.geometry.length > 1 &&
+            preset.geometry.indexOf(geometry) !== -1) {
+            context.storage('preset.' + preset.id + '.addGeom', geometry);
+        }
+    };
 
     return preset;
 }

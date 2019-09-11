@@ -54,13 +54,15 @@ export function uiToolSegemented(context) {
                 setActiveItem(d);
             })
             .each(function(d) {
+                var title = tool.key ? uiTooltipHtml(d.label, tool.key) : d.label;
                 var tooltipBehavior = tooltip()
                     .placement('bottom')
                     .html(true)
-                    .title(uiTooltipHtml(d.label, tool.key));
+                    .title(title)
+                    .scrollContainer(d3_select('#bar'));
                 d3_select(this)
                     .call(tooltipBehavior)
-                    .call(svgIcon('#' + d.icon, 'icon-30'));
+                    .call(svgIcon('#' + d.icon, d.iconClass));
             });
     };
 
@@ -90,7 +92,7 @@ export function uiToolSegemented(context) {
         setActiveItem(tool.items[index]);
     }
 
-    tool.available = function() {
+    tool.allowed = function() {
         if (tool.loadItems) tool.loadItems();
         return tool.items.length > 1;
     };

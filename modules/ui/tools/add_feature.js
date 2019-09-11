@@ -16,11 +16,15 @@ export function uiToolAddFeature(context) {
 
     var tool = {
         id: 'add_feature',
-        label: t('toolbar.add_feature')
+        label: t('toolbar.add_feature'),
+        itemClass: 'disclosing',
+        iconName: 'iD-presets-grid',
+        iconClass: 'icon-30'
     };
 
     var allowedGeometry = ['point', 'vertex', 'line', 'area'];
-    var presetBrowser = uiPresetBrowser(context, allowedGeometry, browserDidSelectPreset, browserDidClose);
+    var presetBrowser = uiPresetBrowser(context, allowedGeometry, browserDidSelectPreset, browserDidClose)
+        .scrollContainer(d3_select('#bar'));
 
     var button = d3_select(null);
 
@@ -57,9 +61,12 @@ export function uiToolAddFeature(context) {
             .call(tooltip()
                 .placement('bottom')
                 .html(true)
-                .title(function() { return uiTooltipHtml(t('modes.add_feature.description'), key); })
+                .title(function() {
+                    return uiTooltipHtml(t('modes.add_feature.description'), key);
+                })
+                .scrollContainer(d3_select('#bar'))
             )
-            .call(svgIcon('#iD-logo-features'));
+            .call(svgIcon('#' + tool.iconName, tool.iconClass));
 
         buttonEnter
             .append('span')
@@ -67,9 +74,14 @@ export function uiToolAddFeature(context) {
 
         button = selection.select('.bar-button');
 
-        presetBrowser.render(selection);
+        selection.call(presetBrowser);
 
         updateEnabledState();
+    };
+
+    tool.allowed = function() {
+        var addableCount = context.presets().getAddable().length;
+        return addableCount === 0 || addableCount > 10;
     };
 
     tool.install = function() {
@@ -130,7 +142,7 @@ export function uiToolAddFeature(context) {
                 return;
         }
 
-        context.presets().setMostRecent(preset, geometry);
+        context.presets().setMostRecent(preset);
 
         context.enter(mode);
     }

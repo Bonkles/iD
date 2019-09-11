@@ -1,4 +1,4 @@
-
+import { select as d3_select } from 'd3-selection';
 import { t } from '../../util/locale';
 import { svgIcon } from '../../svg/icon';
 import { uiTooltipHtml } from '../tooltipHtml';
@@ -10,14 +10,16 @@ export function uiToolRepeatAdd(context) {
 
     var tool = {
         id: 'repeat_add',
-        label: t('toolbar.repeat.title')
+        label: t('toolbar.repeat.title'),
+        iconName: 'iD-icon-repeat'
     };
 
     var button;
 
     var tooltipBehavior = tooltip()
         .placement('bottom')
-        .html(true);
+        .html(true)
+        .scrollContainer(d3_select('#bar'));
 
     tool.render = function(selection) {
 
@@ -40,7 +42,7 @@ export function uiToolRepeatAdd(context) {
             .on('click', function() {
                 toggleRepeat();
             })
-            .call(svgIcon('#iD-icon-repeat'))
+            .call(svgIcon('#' + tool.iconName))
             .merge(button);
     };
 
@@ -50,7 +52,7 @@ export function uiToolRepeatAdd(context) {
         button.classed('active', mode.repeatAddedFeature());
     }
 
-    tool.available = function() {
+    tool.allowed = function() {
         var mode = context.mode();
         if (mode.id === 'add-point' || mode.id === 'add-line' || mode.id === 'add-area') return true;
         return (mode.id === 'draw-line' || mode.id === 'draw-area') && !mode.isContinuing;

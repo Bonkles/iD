@@ -1,3 +1,4 @@
+import { select as d3_select } from 'd3-selection';
 import { svgIcon } from '../../svg/icon';
 import { uiTooltipHtml } from '../tooltipHtml';
 import { tooltip } from '../../util/tooltip';
@@ -9,7 +10,8 @@ export function uiToolSimpleButton(protoTool) {
 
     var tooltipBehavior = tooltip()
         .placement('bottom')
-        .html(true);
+        .html(true)
+        .scrollContainer(d3_select('#bar'));
 
     tool.render = function(selection) {
 
@@ -26,7 +28,7 @@ export function uiToolSimpleButton(protoTool) {
             .attr('tabindex', -1)
             .call(tooltipBehavior)
             .on('click', tool.onClick)
-            .call(svgIcon('#'));
+            .call(svgIcon('#', utilFunctor(tool.iconClass)()));
 
         button = buttonEnter.merge(button);
 

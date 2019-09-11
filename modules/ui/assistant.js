@@ -6,7 +6,7 @@ import {
     event as d3_event
 } from 'd3-selection';
 import { svgIcon } from '../svg/icon';
-import { t, textDirection } from '../util/locale';
+import { currentLocale, t, textDirection } from '../util/locale';
 import { services } from '../services';
 import { utilDisplayLabel } from '../util';
 import { uiIntro } from './intro';
@@ -112,19 +112,37 @@ export function uiAssistant(context) {
         redraw();
     };
 
+    function isBodyCollapsed(collapseCategory) {
+        return collapseCategory && context.storage('assistant.collapsed.' + collapseCategory) === 'true';
+    }
+
+    function setIsBodyCollapsed(collapseCategory, flag) {
+        if (!flag) flag = null;
+        if (collapseCategory) context.storage('assistant.collapsed.' + collapseCategory, flag);
+    }
+
     function updateDidEditStatus() {
         savedChangeset = null;
         savedChangeCount = null;
         didEditAnythingYet = true;
     }
 
-    var isBodyOpen = true;
+    function toggleBody(collapseCategory) {
+        var bodyOpen = isBodyCollapsed(collapseCategory);
+        setIsBodyCollapsed(collapseCategory, !bodyOpen);
 
-    function toggleBody() {
-        isBodyOpen = !isBodyOpen;
-        container.classed('body-collapsed', !isBodyOpen);
+        container.classed('body-collapsed', !bodyOpen);
+        container.classed('minimal', false);
         container.selectAll('.assistant-header .control-col .icon use')
-            .attr('href', '#iD-icon-' + (isBodyOpen ? 'up' : 'down'));
+            .attr('href', '#iD-icon-' + (bodyOpen ? 'up' : 'down'));
+
+        if (!bodyOpen) {
+            container.on('mouseleave.minimal', function() {
+                container.classed('minimal', true);
+            });
+        } else {
+            container.on('mouseleave.minimal', null);
+        }
     }
 
     function drawPanel(panel) {
@@ -141,7 +159,9 @@ export function uiAssistant(context) {
             ' ' +
             (hasBody ? 'has-body' : '') +
             ' ' +
-            (isCollapsible && !isBodyOpen ? 'body-collapsed' : '')
+            (isCollapsible ? 'collapsible' : '') +
+            ' ' +
+            (isCollapsible && isBodyCollapsed(panel.collapseCategory) ? 'body-collapsed minimal' : '')
         );
 
         var iconCol = header.selectAll('.icon-col')
@@ -161,8 +181,13 @@ export function uiAssistant(context) {
         headerMainColEnter.append('div')
             .attr('class', 'mode-label');
 
-        headerMainColEnter.append('div')
+        var subjectTitleArea = headerMainColEnter.append('div')
             .attr('class', 'subject-title');
+
+        subjectTitleArea.append('span');
+
+        subjectTitleArea.append('div')
+            .attr('class', 'controls');
 
         headerMainColEnter.append('div')
             .attr('class', 'header-body');
@@ -179,18 +204,40 @@ export function uiAssistant(context) {
             .append('div')
             .attr('class', 'control-col')
             .append('button')
-            .call(svgIcon('#iD-icon-' + (isBodyOpen ? 'up' : 'down')))
-            .on('click', function() {
-                toggleBody();
+            .call(svgIcon('#iD-icon-' + (isBodyCollapsed(panel.collapseCategory) ? 'down' : 'up')));
+
+        if (isCollapsible) {
+            // make the assistant collapsible by its whole header
+            header.on('click', function() {
+                d3_event.preventDefault();
+                d3_event.stopPropagation();
+                toggleBody(panel.collapseCategory);
             });
+        } else {
+            header.on('click', null);
+        }
 
         var modeLabel = headerMainCol.selectAll('.mode-label');
         modeLabel.text(panel.modeLabel || '');
 
         var subjectTitle = headerMainCol.selectAll('.subject-title');
 
-        subjectTitle.attr('class', 'subject-title ' + panel.titleClass || '');
-        subjectTitle.text(panel.title);
+        subjectTitle.selectAll('span')
+            .attr('class', panel.titleClass || '')
+            .text(panel.title);
+
+        var subjectTitleControls = subjectTitle.selectAll('.controls');
+        subjectTitleControls.text('');
+        if (panel.onClose) {
+            subjectTitleControls.append('button')
+                .attr('class', 'close')
+                .on('click', function() {
+                    d3_event.preventDefault();
+                    d3_event.stopPropagation();
+                    panel.onClose();
+                })
+                .call(svgIcon('#iD-icon-close'));
+        }
 
         iconCol.html('');
         if (panel.headerIcon) {
@@ -342,8 +389,85 @@ export function uiAssistant(context) {
             prominent: true,
             theme: 'light',
             headerIcon: utilGreetingIcon(),
-            title: utilTimeOfDayGreeting()
+            title: utilTimeOfDayGreeting(),
+            onClose: function() {
+                updateDidEditStatus();
+                redraw();
+            }
         };
+
+        function renderFirstSessionHeader(selection, bodyTextArea) {
+            var firstTimeInfo = t('assistant.launch.osm_info') + '<br/>' +
+                                t('assistant.launch.first_time_tutorial') + '<br/>' +
+                                t('assistant.launch.thanks_have_fun');
+            bodyTextArea.html(firstTimeInfo);
+            bodyTextArea.selectAll('a')
+                .attr('href', '#')
+                .on('click', function() {
+                    d3_event.preventDefault();
+                    d3_event.stopPropagation();
+
+                    context.isFirstSession = false;
+                    updateDidEditStatus();
+                    context.container().call(uiIntro(context));
+                    redraw();
+                });
+
+            selection
+                .append('div')
+                .attr('class', 'main-footer')
+                .append('button')
+                .attr('class', 'primary')
+                .on('click', function() {
+                    d3_event.preventDefault();
+                    d3_event.stopPropagation();
+
+                    updateDidEditStatus();
+                    redraw();
+                })
+                .append('span')
+                .text(t('assistant.launch.start_mapping'));
+        }
+
+        function renderBlockedAccountHeader(selection, bodyTextArea, details) {
+
+            var link = bodyTextArea
+                .html(t('assistant.launch.blocks.active', { displayName: '<b>' + details.display_name + '</b>' }))
+                .append('a')
+                .attr('class', 'link-out')
+                .attr('target', '_blank')
+                .attr('tabindex', -1)
+                .attr('href', context.connection().userURL(details.display_name) + '/blocks');
+
+            link.append('span')
+                .text(' ' + t('success.help_link_text'));
+            link
+                .call(svgIcon('#iD-icon-out-link', 'inline'));
+
+            d3_select('.assistant-header .subject-title span')
+                .text(t('assistant.notice'));
+            d3_select('.assistant-header .icon-col .icon use')
+                .attr('href', '#iD-icon-alert');
+        }
+
+        function renderAccountAnniversaryHeader(selection, bodyTextArea, details, joinDate, now) {
+
+            var yearCount = now.getFullYear() - joinDate.getFullYear();
+            var anniversaryInfo = t('assistant.launch.anniversary.years.' + (yearCount === 1 ? 'first' : 'subsequent'), {
+                                      years: '<b>' + yearCount + '</b>',
+                                      displayName: '<b>' + details.display_name + '</b>'
+                                  }) + '<br/>' +
+                                  t('assistant.launch.changesets_date', {
+                                      changesets: '<b>' + parseFloat(details.changesets_count).toLocaleString(currentLocale) + '</b>',
+                                      joinDate: '<b>' + joinDate.toLocaleDateString(currentLocale, { day: 'numeric', month: 'long', year: 'numeric' }) + '</b>'
+                                  });
+            bodyTextArea.html(anniversaryInfo);
+
+            d3_select('.assistant-header .subject-title span')
+                .text(t('assistant.launch.anniversary.happy_anniversary'));
+            d3_select('.assistant-header .icon-col .icon use')
+                .attr('href', '#fas-birthday-cake');
+        }
 
         panel.renderHeaderBody = function(selection) {
 
@@ -351,27 +475,46 @@ export function uiAssistant(context) {
                 .append('div')
                 .attr('class', 'body-text');
 
-            var mainFooter = selection.append('div')
-                .attr('class', 'main-footer');
+            var osm = context.connection();
 
-            bodyTextArea.html(t('assistant.welcome.' + (context.isFirstSession ? 'first_time' : 'return')));
-            bodyTextArea.selectAll('a')
-                .attr('href', '#')
-                .on('click', function() {
-                    context.isFirstSession = false;
-                    updateDidEditStatus();
-                    context.container().call(uiIntro(context));
-                    redraw();
-                });
+            if (context.isFirstSession) {
+                renderFirstSessionHeader(selection, bodyTextArea);
+                return;
+            }
 
-            mainFooter.append('button')
-                .attr('class', 'primary')
-                .on('click', function() {
-                    updateDidEditStatus();
-                    redraw();
-                })
-                .append('span')
-                .text(t('assistant.welcome.start_mapping'));
+            var genericWelcomesCount = 2;
+            bodyTextArea.html(t('assistant.launch.generic_welcome.' + Math.floor(Math.random() * genericWelcomesCount)));
+
+            if (!osm.authenticated()) return;
+
+            osm.userDetails(function(err, details) {
+
+                if (err || !details) return;
+
+                var joinDate = new Date(details.account_created);
+                var now = new Date();
+
+                if (parseFloat(details.active_blocks) > 0) {
+                    // user has been blocked
+                    renderBlockedAccountHeader(selection, bodyTextArea, details);
+
+                } else if (joinDate.getDate() === now.getDate() &&
+                    joinDate.getMonth() === now.getMonth() &&
+                    joinDate.getFullYear() < now.getFullYear() &&
+                    parseFloat(details.changesets_count) > 1) {
+                    // OSM anniversary
+                    renderAccountAnniversaryHeader(selection, bodyTextArea, details, joinDate, now);
+
+                } else {
+                    var loggedInInfo = t('assistant.launch.welcome_back_user', {
+                                           displayName: '<b>' + details.display_name + '</b>'
+                                       }) + '<br/>' +
+                                       t('assistant.launch.changesets', {
+                                           changesets: '<b>' + parseFloat(details.changesets_count).toLocaleString(currentLocale) + '</b>'
+                                       });
+                    bodyTextArea.html(loggedInInfo);
+                }
+            });
         };
 
         return panel;
@@ -439,7 +582,12 @@ export function uiAssistant(context) {
             mainFooter.append('button')
                 .attr('class', 'primary')
                 .on('click', function() {
+                    d3_event.preventDefault();
+                    d3_event.stopPropagation();
+
                     updateDidEditStatus();
+                    context.container().selectAll('#content')
+                        .attr('class', 'active');
                     context.history().restore();
                     redraw();
                 })
@@ -449,8 +597,13 @@ export function uiAssistant(context) {
             mainFooter.append('button')
                 .attr('class', 'destructive')
                 .on('click', function() {
+                    d3_event.preventDefault();
+                    d3_event.stopPropagation();
+
                     // don't show another welcome screen after discarding changes
                     updateDidEditStatus();
+                    context.container().selectAll('#content')
+                        .attr('class', 'active');
                     context.history().clearSaved();
                     context.map().pan([0,0]);  // trigger a map redraw
                     redraw();
@@ -468,7 +621,8 @@ export function uiAssistant(context) {
             headerIcon: 'fas-map-marked-alt',
             modeLabel: t('assistant.mode.mapping'),
             title: currLocation,
-            titleClass: 'map-center-location'
+            titleClass: 'map-center-location',
+            collapseCategory: 'browse'
         };
 
         panel.renderBody = function(selection) {
@@ -507,7 +661,8 @@ export function uiAssistant(context) {
         var panel = {
             theme: 'light',
             modeLabel: t('QA.keepRight.title'),
-            title: errorTitle(error)
+            title: errorTitle(error),
+            collapseCategory: 'inspect'
         };
 
         panel.renderHeaderIcon = function(selection) {
@@ -552,7 +707,8 @@ export function uiAssistant(context) {
         var panel = {
             theme: 'light',
             modeLabel: t('QA.improveOSM.title'),
-            title: errorTitle(error)
+            title: errorTitle(error),
+            collapseCategory: 'inspect'
         };
 
         panel.renderHeaderIcon = function(selection) {
@@ -614,9 +770,10 @@ export function uiAssistant(context) {
 
         var panel = {
             theme: 'light',
-            modeLabel: t('assistant.mode.viewing'),
+            modeLabel: t('assistant.mode.inspecting'),
             headerIcon: 'iD-icon-data',
-            title: t('map_data.layers.custom.title')
+            title: t('map_data.layers.custom.title'),
+            collapseCategory: 'inspect'
         };
 
         panel.renderBody = function(selection) {
@@ -632,8 +789,9 @@ export function uiAssistant(context) {
 
         var panel = {
             theme: 'light',
-            modeLabel: t('assistant.mode.editing'),
-            title: note.label()
+            modeLabel: t('assistant.mode.inspecting'),
+            title: note.label(),
+            collapseCategory: 'inspect'
         };
 
         panel.renderHeaderIcon = function(selection) {
@@ -663,34 +821,37 @@ export function uiAssistant(context) {
 
     function panelAddDrawGeometry(context, mode) {
 
-        var icon;
-        if (mode.id.indexOf('point') !== -1) {
-            icon = 'iD-icon-point';
-        } else if (mode.id.indexOf('line') !== -1) {
-            icon = 'iD-icon-line';
-        } else {
-            icon = 'iD-icon-area';
-        }
-
         var message = t('assistant.instructions.' + mode.id.replace('-', '_'));
+        if (mode.id === 'add-point' && mode.preset &&
+            mode.preset.geometry.indexOf('point') === -1) {
 
-        var modeLabelID;
-        if (mode.id.indexOf('add') !== -1) {
-            modeLabelID = 'adding';
-        } else {
-            modeLabelID = 'drawing';
-
+            message = t('assistant.instructions.add_vertex');
+        } else if (mode.id.indexOf('draw') !== -1) {
             var way = context.entity(mode.wayID);
             if (way.nodes.length >= 4) {
                 message += '<br/>' + t('assistant.instructions.finishing');
             }
         }
 
+        var modeLabelID = 'drawing';
+
+        if (mode.id === 'add-point') {
+            modeLabelID = 'placing';
+        }
+
         var panel = {
-            headerIcon: icon,
             modeLabel: t('assistant.mode.' + modeLabelID),
             title: mode.title,
-            message: message
+            message: message,
+            collapseCategory: 'draw'
+        };
+
+        panel.renderHeaderIcon = function(selection) {
+            selection.call(uiPresetIcon(context)
+                .geometry(mode.geometry)
+                .preset(mode.preset)
+                .sizeClass('small')
+                .pointMarker(false));
         };
 
         return panel;
@@ -700,9 +861,10 @@ export function uiAssistant(context) {
 
         var panel = {
             theme: 'light',
-            modeLabel: t('assistant.mode.editing'),
+            modeLabel: t('assistant.mode.inspecting'),
             title: selectedIDs.length === 1 ? utilDisplayLabel(context.entity(selectedIDs[0]), context) :
-                t('assistant.feature_count.multiple', { count: selectedIDs.length.toString() })
+                t('assistant.feature_count.multiple', { count: selectedIDs.length.toString() }),
+            collapseCategory: 'inspect'
         };
 
         panel.renderHeaderIcon = function(selection) {
@@ -726,7 +888,8 @@ export function uiAssistant(context) {
             var entityEditor = uiEntityEditor(context);
             entityEditor
                 .state('select')
-                .entityIDs(selectedIDs);
+                .entityIDs(selectedIDs)
+                .newFeature(context.mode().newFeature());
             selection.call(entityEditor);
         };
 
@@ -740,7 +903,8 @@ export function uiAssistant(context) {
             headerIcon: 'iD-icon-save',
             modeLabel: t('assistant.mode.authenticating'),
             title: t('assistant.commit.auth.osm_account'),
-            message: t('assistant.commit.auth.message')
+            message: t('assistant.commit.auth.message'),
+            collapseCategory: 'save'
         };
 
         return panel;
@@ -755,7 +919,8 @@ export function uiAssistant(context) {
             theme: 'light',
             headerIcon: 'iD-icon-save',
             modeLabel: t('assistant.mode.saving'),
-            title: t('commit.' + titleID, { count: summary.length })
+            title: t('commit.' + titleID, { count: summary.length }),
+            collapseCategory: 'save'
         };
 
         panel.renderBody = function(selection) {
@@ -781,7 +946,12 @@ export function uiAssistant(context) {
             prominent: true,
             theme: 'light',
             headerIcon: savedIcon,
-            title: t('assistant.commit.success.thank_you')
+            title: t('assistant.commit.success.thank_you'),
+            collapseCategory: 'save',
+            onClose: function() {
+                updateDidEditStatus();
+                redraw();
+            }
         };
 
         panel.renderHeaderBody = function(selection) {
@@ -789,9 +959,6 @@ export function uiAssistant(context) {
             var bodyTextArea = selection
                 .append('div')
                 .attr('class', 'body-text');
-
-            var mainFooter = selection.append('div')
-                .attr('class', 'main-footer');
 
             bodyTextArea.html(
                 '<b>' + t('assistant.commit.success.just_improved', { location: currLocation }) + '</b>' +
@@ -812,15 +979,6 @@ export function uiAssistant(context) {
 
             link
                 .call(svgIcon('#iD-icon-out-link', 'inline'));
-
-            mainFooter.append('button')
-                .attr('class', 'primary')
-                .on('click', function() {
-                    updateDidEditStatus();
-                    redraw();
-                })
-                .append('span')
-                .text(t('assistant.commit.keep_mapping'));
         };
 
         panel.renderBody = function(selection) {

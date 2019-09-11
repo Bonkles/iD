@@ -1,23 +1,26 @@
 import {
     event as d3_event,
+    select as d3_select
 } from 'd3-selection';
 
 import { svgIcon } from '../../svg/icon';
 import { uiTooltipHtml } from '../tooltipHtml';
 import { tooltip } from '../../util/tooltip';
 
-export function uiToolOperation(context, operationClass) {
+export function uiToolOperation(context, operationClass, tool) {
+
+    if (!tool) tool = {};
 
     var operation;
 
-    var tool = {
-        itemClass: 'operation'
-    };
+    tool.itemClass = 'operation';
+    tool.iconClass = 'operation-icon';
 
     var button,
         tooltipBehavior = tooltip()
         .placement('bottom')
-        .html(true);
+        .html(true)
+        .scrollContainer(d3_select('#bar'));
 
     tool.render = function(selection) {
 
@@ -39,7 +42,7 @@ export function uiToolOperation(context, operationClass) {
                 button.call(tooltipBehavior.hide);
                 operation();
             })
-            .call(svgIcon('#iD-operation-' + operation.id));
+            .call(svgIcon('#' + tool.iconName, tool.iconClass));
 
         button = buttonEnter.merge(button);
 
@@ -51,13 +54,15 @@ export function uiToolOperation(context, operationClass) {
 
         tool.id = operation.id;
         tool.label = operation.title;
+        tool.iconName = 'iD-operation-' + operation.id;
     }
 
-    tool.available = function() {
+    tool.allowed = function() {
         var mode = context.mode();
         if (mode.id !== 'select') return false;
+
         var op = operationClass(mode.selectedIDs(), context);
-        if (op.available()) {
+        if (op.available('toolbar')) {
             setOperation(op);
             return true;
         }
