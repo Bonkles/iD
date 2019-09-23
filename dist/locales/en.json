@@ -24,6 +24,9 @@
             "favorites": "Favorites",
             "add_feature": "Add Feature",
             "finish": "Finish",
+            "generic": {
+                "title": "Geometries"
+            },
             "geometry": {
                 "key": "G"
             },
@@ -537,9 +540,21 @@
             },
             "reverse": {
                 "title": "Reverse",
-                "description": "Make this line go in the opposite direction.",
+                "description": {
+                    "point": "Flip the direction of this point.",
+                    "points": "Flip the direction of these points.",
+                    "line": "Make this line go in the opposite direction.",
+                    "lines": "Make these lines go in the opposite direction.",
+                    "features": "Flip the directions of these features."
+                },
                 "key": "V",
-                "annotation": "Reversed a line."
+                "annotation": {
+                    "point": "Reversed a point.",
+                    "points": "Reversed multiple points.",
+                    "line": "Reversed a line.",
+                    "lines": "Reversed multiple lines.",
+                    "features": "Reversed multiple features."
+                }
             },
             "split": {
                 "title": "Split",
@@ -2388,7 +2403,7 @@
                     "disconnect": "Disconnect features at the selected node",
                     "extract": "Extract a point from a feature",
                     "split": "Split a line into two at the selected node",
-                    "reverse": "Reverse a line",
+                    "reverse": "Reverse selected features",
                     "move": "Move selected features",
                     "rotate": "Rotate selected features",
                     "orthogonalize": "Square corners of a line or area",
@@ -2827,6 +2842,10 @@
                     }
                 },
                 "board_type": {
+                    "label": "Type",
+                    "terms": ""
+                },
+                "bollard": {
                     "label": "Type",
                     "terms": ""
                 },
@@ -3554,6 +3573,10 @@
                     "label": "Type",
                     "terms": ""
                 },
+                "informal": {
+                    "label": "Informal",
+                    "terms": ""
+                },
                 "information": {
                     "label": "Type",
                     "terms": ""
@@ -3687,6 +3710,10 @@
                 "length": {
                     "label": "Length (Meters)",
                     "terms": ""
+                },
+                "level_semi": {
+                    "label": "Levels",
+                    "terms": "building floors,decks,stories,storeys,storys"
                 },
                 "level": {
                     "label": "Level",
@@ -4570,6 +4597,10 @@
                 },
                 "step_count": {
                     "label": "Number of Steps",
+                    "terms": ""
+                },
+                "stile": {
+                    "label": "Type",
                     "terms": ""
                 },
                 "stop": {
@@ -5506,6 +5537,10 @@
                     "name": "Library",
                     "terms": "book"
                 },
+                "amenity/loading_dock": {
+                    "name": "Loading Dock",
+                    "terms": "door,loading bay,shipping,unloading,warehouse"
+                },
                 "amenity/love_hotel": {
                     "name": "Love Hotel",
                     "terms": ""
@@ -5994,6 +6029,10 @@
                     "name": "Animal Watering Place",
                     "terms": ""
                 },
+                "amenity/weighbridge": {
+                    "name": "Truck Scale",
+                    "terms": "weigh station,weighbridge"
+                },
                 "area": {
                     "name": "Area",
                     "terms": "polygon"
@@ -6015,7 +6054,7 @@
                     "terms": "ferris wheel,theme park,amusement ride"
                 },
                 "attraction/bumper_car": {
-                    "name": "Bumper Car",
+                    "name": "Bumper Cars",
                     "terms": "theme park,dodgem cars,autoscooter"
                 },
                 "attraction/bungee_jumping": {
@@ -6072,6 +6111,10 @@
                 },
                 "barrier/block": {
                     "name": "Block",
+                    "terms": ""
+                },
+                "barrier/bollard_line": {
+                    "name": "Bollard Row",
                     "terms": ""
                 },
                 "barrier/bollard": {
@@ -6969,6 +7012,10 @@
                 "highway/path": {
                     "name": "Path",
                     "terms": "hike,hiking,trackway,trail,walk"
+                },
+                "highway/path/informal": {
+                    "name": "Informal Path",
+                    "terms": "bootleg trail,cow path,desire line,desire path,desireline,desirepath,elephant path,game trail,goat track,herd path,pig trail,shortcut,social trail,use trail"
                 },
                 "highway/pedestrian_area": {
                     "name": "Pedestrian Area",
@@ -7938,6 +7985,10 @@
                     "name": "Tunnel",
                     "terms": "bore,dig,shaft,underground passage,underpass"
                 },
+                "man_made/utility_pole": {
+                    "name": "Utility Pole",
+                    "terms": ""
+                },
                 "man_made/wastewater_plant": {
                     "name": "Wastewater Plant",
                     "terms": "sewage*,water treatment plant,reclamation plant"
@@ -8324,7 +8375,7 @@
                 },
                 "office/research": {
                     "name": "Research Office",
-                    "terms": ""
+                    "terms": "R and D,research and development,research lab"
                 },
                 "office/surveyor": {
                     "name": "Surveyor Office",
